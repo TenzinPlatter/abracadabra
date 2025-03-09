@@ -1,23 +1,17 @@
 use cpal::{
-    Device, Host, SupportedStreamConfig,
+    Device, Host, SupportedInputConfigs, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
 };
 use std::io;
 
-struct MicInfo {
-    device: Device,
-    config: SupportedStreamConfig,
+pub struct MicInfo {
+    pub device: Device,
+    pub config: SupportedStreamConfig,
 }
 
-fn get_config(mic: Device) -> SupportedStreamConfig {
-    let mut supported_configs_range = mic
-        .supported_output_configs()
-        .expect("error while querying configs");
-
-    supported_configs_range
-        .next()
-        .expect("no supported config?!")
-        .with_max_sample_rate()
+fn get_config(mic: &Device) -> SupportedStreamConfig {
+    mic.default_input_config()
+        .expect("No default input config?")
 }
 
 pub fn connect_to_mic(use_default_mic: bool) -> MicInfo {
@@ -37,9 +31,10 @@ pub fn connect_to_mic(use_default_mic: bool) -> MicInfo {
         mic.name().expect("Default device should have name")
     );
 
+    let config = get_config(&mic);
     MicInfo {
         device: mic,
-        config: get_config(mic),
+        config,
     }
 }
 

@@ -1,5 +1,6 @@
-use kazaam::{mic_utils::connect_to_mic, use_default_mic};
+use cpal::traits::StreamTrait;
+use kazaam::{get_silent_stream, mic_utils::connect_to_mic, use_default_mic};
 
 fn main() {
-    connect_to_mic(use_default_mic());
+    let mic = connect_to_mic(use_default_mic());
 }
