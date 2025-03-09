@@ -23,22 +23,24 @@ pub fn connect_to_mic(use_default_mic: bool) {
 }
 
 pub fn choose_mic(host: &Host) -> Device {
-    for (i, device) in host.devices().expect("What").into_iter().enumerate() {
-        println!("{}: {}", i, device.name().expect("Device without name"));
+    let mut num_of_devices = 0;
+    for (i, device) in host.input_devices().expect("What").into_iter().enumerate() {
+        println!("{}: {}", i + 1, device.name().expect("Device without name"));
+        num_of_devices += 1;
     }
 
     println!("Please enter the corresponding number for your chosen device");
 
     let choice: u32;
-    let num_of_devices = host.devices().iter().len();
     loop {
         let mut input_line = String::new();
         io::stdin()
             .read_line(&mut input_line)
             .expect("Failed to read line");
-        if let Ok(n) = input_line.trim().parse() {
-            if n <= num_of_devices as u32 {
-                choice = n;
+        if let Ok(n) = input_line.trim().parse::<u32>() {
+            if n as u32 <= num_of_devices {
+                // corrects from 1 based to 0 based index
+                choice = n - 1;
                 break;
             } else {
                 eprintln!("Please enter a valid choice");
@@ -49,8 +51,8 @@ pub fn choose_mic(host: &Host) -> Device {
     }
 
     let mut mic = host.default_input_device().unwrap();
-    for (i, device) in host.devices().unwrap().into_iter().enumerate() {
-        if i == choice as usize {
+    for (i, device) in host.input_devices().unwrap().into_iter().enumerate() {
+        if i as u32 == choice {
             mic = device;
         }
     }
