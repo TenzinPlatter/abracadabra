@@ -1,17 +1,76 @@
 use cpal::{
-    Device, Host, SupportedInputConfigs, SupportedStreamConfig,
-    traits::{DeviceTrait, HostTrait},
+    Device, Host, StreamConfig,
+    traits::{DeviceTrait, HostTrait, StreamTrait},
 };
-use std::io;
+use std::{
+    fs::File,
+    io::{self, BufWriter},
+    sync::{Arc, Mutex},
+};
 
 pub struct MicInfo {
     pub device: Device,
-    pub config: SupportedStreamConfig,
+    pub config: StreamConfig,
 }
 
-fn get_config(mic: &Device) -> SupportedStreamConfig {
+impl MicInfo {
+    pub fn listen(&self) -> Result<String, Box<dyn std::error::Error>> {
+        println!(
+            "Recording with {}Hz, {:?}-bit",
+            self.config.sample_rate.0, self.config.channels
+        );
+
+        let samples = Arc::new(Mutex::new(Vec::<i16>::new()));
+        let samples_clone = Arc::clone(&samples);
+
+        let write_data_fn = move |data: &[i16], _: &cpal::InputCallbackInfo| {
+            let mut buffer = samples_clone.lock().unwrap();
+            buffer.extend_from_slice(data);
+        };
+
+        let err_fn = |err| eprintln!("Stream Error: {}", err);
+
+        let stream = self
+            .device
+            .build_input_stream(&self.config, write_data_fn, err_fn, None)?;
+
+        println!("Started recording, press enter to stop");
+        stream.play()?;
+
+        // will block until user presses enter
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+
+        drop(stream);
+
+        let filepath = String::from("assets/recording.wav");
+        let file = File::create(&filepath)?;
+        let writer = BufWriter::new(file);
+        let spec = hound::WavSpec {
+            channels: self.config.channels,
+            sample_rate: self.config.sample_rate.0,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+
+        let mut wav_writer = hound::WavWriter::new(writer, spec)?;
+
+        let samples = samples.lock().unwrap();
+
+        for &sample in samples.iter() {
+            wav_writer.write_sample(sample)?;
+        }
+
+        wav_writer.finalize()?;
+
+        Ok(filepath)
+    }
+}
+
+fn get_config(mic: &Device) -> StreamConfig {
     mic.default_input_config()
         .expect("No default input config?")
+        .into()
 }
 
 pub fn connect_to_mic(use_default_mic: bool) -> MicInfo {
