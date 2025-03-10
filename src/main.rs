@@ -1,24 +1,43 @@
 use kazaam::{
+    audio_processing::{magnitude_data_to_frequency_data, samples_to_magnitude_data_windows},
     mic_utils::{connect_to_mic, use_default_mic},
-    plot_spectrum, process_audio, save_spectrograph,
 };
 
 fn main() {
     let mic = connect_to_mic(use_default_mic());
-    let samples: Vec<i16>;
-    match mic.listen() {
-        Ok(s) => {
-            let mut s = s.lock().unwrap();
-            samples = std::mem::take(&mut *s);
-        }
+    let mut samples: Vec<f32> = match mic.listen() {
+        Ok(s) => s,
         Err(e) => {
             eprintln!("Recording error: {}", e);
             return;
         }
+    };
+
+    const BIN_SIZE: usize = 1024;
+
+    let mag_data = match samples_to_magnitude_data_windows(&mut samples, BIN_SIZE, 0.8) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("Recording error: {}", e);
+            return;
+        }
+    };
+
+    let freq_data = magnitude_data_to_frequency_data(mag_data, mic.config.sample_rate.0, BIN_SIZE);
+
+    let len = freq_data[0].len();
+    let mut avgs = vec![0.; len];
+    for window in freq_data.iter() {
+        for (i, f) in window.iter().enumerate() {
+            avgs[i] += f.intensity;
+        }
     }
 
-    process_audio(&samples, mic.config, 1024, 0.8);
+    for i in 0..avgs.len() {
+        avgs[i] /= len as f32;
+    }
 
-    // let fp = "assets/spectrograph.png";
-    // save_spectrograph(samples, mic.config.sample_rate.0, fp);
+    for (i, f) in freq_data[0].iter().enumerate() {
+        println!("average intensity {} for freq {}", avgs[i], f.freq);
+    }
 }

@@ -13,7 +13,7 @@ pub struct MicInfo {
 }
 
 impl MicInfo {
-    pub fn listen(&self) -> Result<Arc<Mutex<Vec<i16>>>, Box<dyn std::error::Error>> {
+    pub fn listen(&self) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         println!(
             "Recording with {}Hz, {:?}-bit",
             self.config.sample_rate.0, self.config.channels
@@ -43,6 +43,14 @@ impl MicInfo {
         // stop recording
         drop(stream);
 
+        let samples: Vec<f32> = samples
+            .lock()
+            .unwrap()
+            .iter()
+            // cast both so there is no integer division
+            .map(|s| *s as f32 / i16::MAX as f32)
+            .collect();
+
         Ok(samples)
     }
 }
@@ -71,6 +79,7 @@ pub fn connect_to_mic(use_default_mic: bool) -> MicInfo {
     );
 
     let config = get_config(&mic);
+
     MicInfo {
         device: mic,
         config,

@@ -1,33 +1,10 @@
 use std::{error::Error, fs::File, io::BufWriter};
 
-use cpal::StreamConfig;
 use plotters::prelude::*;
-use rustfft::{FftPlanner, num_complex::Complex};
 use sonogram::{ColourGradient, ColourTheme, SpecOptionsBuilder};
 
+pub mod audio_processing;
 pub mod mic_utils;
-
-/// processes audio from samples to windowed frequency data
-/// window_size --> number of samples for each window
-/// overlap --> percentage overlap between samples, should be between 0-1
-/// for music processing 75 - 87.5 is good
-pub fn process_audio(
-    samples: &Vec<i16>,
-    config: StreamConfig,
-    window_size: u16,
-    overlap: f32,
-) -> Result<(), Box<dyn Error>> {
-    //TODO: make better fn name
-
-    // step size must be an integer
-    let step_size: u32 = (window_size as f32 * (1. - overlap)).floor() as u32;
-
-    let windows = vec![];
-
-    for i in (0..(samples.len() as u16 - window_size)).step_by(window_size.into()) {}
-
-    Ok(())
-}
 
 pub fn plot_spectrum(magnitudes: &[f32], file_path: &str) {
     let root = BitMapBackend::new(file_path, (2048, 1200)).into_drawing_area();
