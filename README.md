@@ -1,10 +1,9 @@
 # TODO:
 - [X] get mic input into byte array
-- [ ] fast fourier transform data
-- [ ] create spectrogram (maybe make a quick visualizer for this?)
-- [ ] split data into small sections
-  * maybe 100ms?? can't be too small
-  * might have to use 'hamming window function' to avoid 'spectral leakage'
+- [X] fast fourier transform data
+- [X] create spectrogram (maybe make a quick visualizer for this?)
+- [X] split data into small sections
+- [X] get frequency data for each section
 - [ ] fingerprint data (decide on algorithm)
 - [ ] get mp3 files into byte array
 - [ ] store mp3 data (for searchable songs)
