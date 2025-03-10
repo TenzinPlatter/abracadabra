@@ -3,8 +3,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 use std::{
-    fs::File,
-    io::{self, BufWriter},
+    io::{self},
     sync::{Arc, Mutex},
 };
 
@@ -14,7 +13,7 @@ pub struct MicInfo {
 }
 
 impl MicInfo {
-    pub fn listen(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn listen(&self) -> Result<Arc<Mutex<Vec<i16>>>, Box<dyn std::error::Error>> {
         println!(
             "Recording with {}Hz, {:?}-bit",
             self.config.sample_rate.0, self.config.channels
@@ -41,29 +40,10 @@ impl MicInfo {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
 
+        // stop recording
         drop(stream);
 
-        let filepath = String::from("assets/recording.wav");
-        let file = File::create(&filepath)?;
-        let writer = BufWriter::new(file);
-        let spec = hound::WavSpec {
-            channels: self.config.channels,
-            sample_rate: self.config.sample_rate.0,
-            bits_per_sample: 16,
-            sample_format: hound::SampleFormat::Int,
-        };
-
-        let mut wav_writer = hound::WavWriter::new(writer, spec)?;
-
-        let samples = samples.lock().unwrap();
-
-        for &sample in samples.iter() {
-            wav_writer.write_sample(sample)?;
-        }
-
-        wav_writer.finalize()?;
-
-        Ok(filepath)
+        Ok(samples)
     }
 }
 
@@ -133,4 +113,14 @@ fn choose_mic(host: &Host) -> Device {
     }
 
     mic
+}
+
+pub fn use_default_mic() -> bool {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        return true;
+    } else {
+        // if passing -d flag then don't use default mic
+        args[1].trim() != "-d"
+    }
 }
