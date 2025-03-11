@@ -1,18 +1,14 @@
-use std::{
-    fs::{File, OpenOptions},
-    io::Write,
-};
+use std::{collections::BTreeMap, fs::OpenOptions, io::Write};
 
 use kazaam::{
-    audio_processing::{
-        WindowFreqInfo, magnitude_data_to_frequency_data, no_window_mag, process_audio,
-        samples_to_magnitude_data_windows,
-    },
-    graphing::{plot_frequency_intensity, write_freq_data},
+    audio_processing::process_audio,
+    graphing::plot_frequency_intensity,
     mic_utils::{connect_to_mic, use_default_mic},
 };
 
 fn main() {
+    const BIN_SIZE: usize = 8096;
+
     let mic = connect_to_mic(use_default_mic());
     let mut samples: Vec<f32> = match mic.listen() {
         Ok(s) => s,
@@ -22,63 +18,36 @@ fn main() {
         }
     };
 
-    const BIN_SIZE: usize = 8096;
+    let data = process_audio(&mut samples, mic.config.sample_rate.0)
+        // map frequency f64 to u64 for avg function
+        .unwrap()
+        .iter()
+        .map(|window| window.iter().map(|(f, i)| (*f as u64, *i)).collect())
+        .collect();
 
-    // let mag_data = match samples_to_magnitude_data_windows(
-    //     &mut samples,
-    //     BIN_SIZE,
-    //     0.8,
-    //     mic.config.sample_rate.0,
-    // ) {
-    //     Ok(x) => x,
-    //     Err(e) => {
-    //         eprintln!("Recording error: {}", e);
-    //         return;
-    //     }
-    // };
+    let avgs = average_intensity_per_frequency(data);
+    let avgs_f64: Vec<(f64, f64)> = avgs.iter().map(|(i, j)| (*i as f64, *j)).collect();
 
-    // let freq_data = magnitude_data_to_frequency_data(mag_data, mic.config.sample_rate.0, BIN_SIZE);
+    plot_frequency_intensity(avgs_f64.as_slice(), "assets/frequency_avgs.png").unwrap();
+}
 
-    // let mut data = vec![];
+fn average_intensity_per_frequency(data: Vec<Vec<(u64, f64)>>) -> Vec<(u64, f64)> {
+    let mut freq_map: BTreeMap<u64, (f64, usize)> = BTreeMap::new();
 
-    // for f in freq_data.first().unwrap().frequencies.iter() {
-    //     data.push((f.freq as f64, f.intensity as f64));
-    // }
-
-    // let mut avgs = vec![0.; freq_data.first().unwrap().frequencies.len()];
-
-    // for f in freq_data.iter() {
-    //     for (i, fi) in f.frequencies.iter().enumerate() {
-    //         avgs[i] += fi.intensity;
-    //     }
-    // }
-
-    // let len = freq_data.first().unwrap().frequencies.len();
-    // let mut freqs = freq_data.first().unwrap().frequencies.iter();
-
-    // let avgs: Vec<(f64, f64)> = avgs
-    //     .iter()
-    //     .map(|i| (freqs.next().unwrap().freq as f64, *i as f64 / len as f64))
-    //     .collect();
-
-    let mut i = 1;
-    while i * 2 <= samples.len() {
-        i *= 2
+    // Aggregate intensities for each frequency
+    for window in data {
+        for (freq, intensity) in window {
+            let entry = freq_map.entry(freq).or_insert((0.0, 0));
+            entry.0 += intensity; // Sum intensities
+            entry.1 += 1; // Count occurrences
+        }
     }
 
-    samples.truncate(i);
-    let freq_data = process_audio(&mut samples, mic.config.sample_rate.0);
-    for (i, window) in freq_data.iter().enumerate() {
-        let fp = format!("assets/freq_intensity{}.png", i);
-        let _ = plot_frequency_intensity(&window, &fp);
-    }
-
-    // write_avgs(&avgs);
-
-    // if let Err(e) = write_freq_data(&freq_data, "assets/freq_data.txt") {
-    //     eprintln!("Writing error: {}", e);
-    //     return;
-    // }
+    // Compute averages and return a sorted Vec
+    freq_map
+        .into_iter()
+        .map(|(freq, (sum_intensity, count))| (freq, sum_intensity / count as f64))
+        .collect()
 }
 
 fn write_avgs(avgs: &Vec<(f64, f64)>) {
