@@ -1,13 +1,9 @@
 use std::error::Error;
 
-use spectrum_analyzer::{
-    samples_fft_to_spectrum,
-    windows::{self, hann_window},
-};
+use spectrum_analyzer::{samples_fft_to_spectrum, windows::hann_window};
 
 /// time offset is in ms
-///
-struct WindowFrequencyInfo {
+pub struct WindowFrequencyInfo {
     pub time_offset: u64,
     pub frequencies: Vec<FrequencyInfo>,
 }
@@ -20,7 +16,7 @@ struct FrequencyInfo {
 pub fn process_audio(
     samples: &mut Vec<f32>,
     sample_rate: u32,
-) -> Result<Vec<Vec<(f64, f64)>>, Box<dyn Error>> {
+) -> Result<Vec<WindowFrequencyInfo>, Box<dyn Error>> {
     let windows = split_samples_into_windows(samples, 2048, 0.8)?;
 
     let windows = windows
@@ -36,10 +32,12 @@ pub fn process_audio(
             .unwrap()
             .data()
             .iter()
-            .map(|(freq, mag)| (freq.val() as f64, mag.val() as f64))
+            .map(|(freq, mag)| FrequencyInfo {
+                hertz: freq.val() as u64,
+                intensity: mag.val() as f64,
+            })
             .collect()
         })
-        .collect();
 
     Ok(windows)
 }
