@@ -1,12 +1,27 @@
 use std::{collections::BTreeMap, fs::OpenOptions, io::Write};
 
 use kazaam::{
-    audio_processing::process_audio,
+    audio_processing::{interleaved_to_single_channel, process_audio},
     graphing::plot_frequency_intensity,
     mic_utils::{connect_to_mic, use_default_mic},
+    song_utils::save_song_to_db,
+    // song_utils::{SongInfo, save_song_to_db},
 };
 
 fn main() {
+    let info = SongInfo {
+        uid: 1,
+        name: String::from("Too late to turn back now"),
+        artist: String::from("Cornelius Brother & Sister Rose"),
+        mp3_path: String::from("assets/songs/too_late_to_turn_back_now.mp3"),
+    };
+
+    save_song_to_db(info).unwrap();
+
+    // get_user_input();
+}
+
+fn get_user_input() {
     let bin_size: usize = 2048;
     let overlap = 0.8;
 
@@ -18,6 +33,10 @@ fn main() {
             return;
         }
     };
+
+    if mic.config.channels == 2 {
+        samples = interleaved_to_single_channel(samples);
+    }
 
     let data = process_audio(&mut samples, mic.config.sample_rate.0, bin_size, overlap)
         // map frequency from f64 to u64 for avg function
@@ -32,10 +51,23 @@ fn main() {
         })
         .collect();
 
+    // frequency, intensity
     let avgs = average_intensity_per_frequency(data);
     let avgs_f64: Vec<(f64, f64)> = avgs.iter().map(|(i, j)| (*i as f64, *j)).collect();
 
-    plot_frequency_intensity(avgs_f64.as_slice(), "assets/frequency_avgs.png").unwrap();
+    let mut max_f = 0;
+    let mut max_i: f64 = 0.;
+
+    for a in avgs {
+        if a.1 > max_i {
+            max_f = a.0;
+            max_i = a.1;
+        }
+    }
+
+    println!("Highest intensity of {} at {}Hz", max_i, max_f);
+
+    // plot_frequency_intensity(avgs_f64.as_slice(), "assets/frequency_avgs.png").unwrap();
 }
 
 fn average_intensity_per_frequency(data: Vec<Vec<(u64, f64)>>) -> Vec<(u64, f64)> {
