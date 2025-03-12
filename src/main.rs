@@ -7,7 +7,8 @@ use kazaam::{
 };
 
 fn main() {
-    const BIN_SIZE: usize = 8096;
+    let bin_size: usize = 2048;
+    let overlap = 0.8;
 
     let mic = connect_to_mic(use_default_mic());
     let mut samples: Vec<f32> = match mic.listen() {
@@ -18,11 +19,17 @@ fn main() {
         }
     };
 
-    let data = process_audio(&mut samples, mic.config.sample_rate.0)
-        // map frequency f64 to u64 for avg function
+    let data = process_audio(&mut samples, mic.config.sample_rate.0, bin_size, overlap)
+        // map frequency from f64 to u64 for avg function
         .unwrap()
         .iter()
-        .map(|window| window.iter().map(|(f, i)| (*f as u64, *i)).collect())
+        .map(|window| {
+            window
+                .frequencies
+                .iter()
+                .map(|f| (f.hertz as u64, f.intensity))
+                .collect()
+        })
         .collect();
 
     let avgs = average_intensity_per_frequency(data);

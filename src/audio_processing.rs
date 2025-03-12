@@ -8,7 +8,7 @@ pub struct WindowFrequencyInfo {
     pub frequencies: Vec<FrequencyInfo>,
 }
 
-struct FrequencyInfo {
+pub struct FrequencyInfo {
     pub hertz: u64,
     pub intensity: f64,
 }
@@ -16,14 +16,20 @@ struct FrequencyInfo {
 pub fn process_audio(
     samples: &mut Vec<f32>,
     sample_rate: u32,
+    window_size: usize,
+    overlap: f32,
 ) -> Result<Vec<WindowFrequencyInfo>, Box<dyn Error>> {
-    let windows = split_samples_into_windows(samples, 2048, 0.8)?;
+    let windows = split_samples_into_windows(samples, window_size, overlap)?;
+
+    let step_in_samples: usize = (window_size as f32 * (1. - overlap)).floor() as usize;
+    let step_in_ms: u64 = step_in_samples as u64 * 1000 / sample_rate as u64;
 
     let windows = windows
         .iter()
-        .map(|window| {
+        .enumerate()
+        .map(|(i, window)| {
             let hanned = hann_window(window);
-            samples_fft_to_spectrum(
+            let window = samples_fft_to_spectrum(
                 &hanned,
                 sample_rate,
                 spectrum_analyzer::FrequencyLimit::All,
@@ -36,8 +42,14 @@ pub fn process_audio(
                 hertz: freq.val() as u64,
                 intensity: mag.val() as f64,
             })
-            .collect()
+            .collect();
+
+            WindowFrequencyInfo {
+                time_offset: i as u64 * step_in_ms,
+                frequencies: window,
+            }
         })
+        .collect();
 
     Ok(windows)
 }

@@ -10,51 +10,51 @@ use sonogram::{ColourGradient, ColourTheme, SpecOptionsBuilder};
 
 use crate::audio_processing::WindowFrequencyInfo;
 
-pub fn write_freq_data(
-    freq_data: &Vec<WindowFrequencyInfo>,
-    filepath: &str,
-) -> Result<(), Box<dyn Error>> {
-    let mut f = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(filepath)?;
+// pub fn write_freq_data(
+//     freq_data: &Vec<WindowFrequencyInfo>,
+//     filepath: &str,
+// ) -> Result<(), Box<dyn Error>> {
+//     let mut f = OpenOptions::new()
+//         .create(true)
+//         .write(true)
+//         .truncate(true)
+//         .open(filepath)?;
 
-    let mut json_vals = Vec::with_capacity(freq_data.len());
+//     let mut json_vals = Vec::with_capacity(freq_data.len());
 
-    for window in freq_data.iter() {
-        let freqs: Vec<JsonValue> = window
-            .frequencies
-            .iter()
-            .map(|f| object! { intensity: f.intensity, frequency: f.freq})
-            .collect();
+//     for window in freq_data.iter() {
+//         let freqs: Vec<JsonValue> = window
+//             .frequencies
+//             .iter()
+//             .map(|f| object! { intensity: f.intensity, frequency: f.hertz})
+//             .collect();
 
-        let data = object! {
-            time: window.time_offset,
-            frequences: freqs,
-        };
+//         let data = object! {
+//             time: window.time_offset,
+//             frequences: freqs,
+//         };
 
-        json_vals.push(data);
-    }
+//         json_vals.push(data);
+//     }
 
-    let max = freq_data
-        .first()
-        .unwrap()
-        .frequencies
-        .iter()
-        .map(|f| f.intensity)
-        .fold(0., f32::max);
+//     let max = freq_data
+//         .first()
+//         .unwrap()
+//         .frequencies
+//         .iter()
+//         .map(|f| f.intensity)
+//         .fold(0., f64::max);
 
-    println!("Max itensity: {}", max);
+//     println!("Max itensity: {}", max);
 
-    let json = object! {
-        values: json_vals,
-    };
+//     let json = object! {
+//         values: json_vals,
+//     };
 
-    f.write(json.dump().as_bytes())?;
+//     f.write(json.dump().as_bytes())?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 /// input should be frequency, intensity
 pub fn plot_frequency_intensity(
