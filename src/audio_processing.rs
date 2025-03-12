@@ -13,6 +13,18 @@ pub struct FrequencyInfo {
     pub intensity: f64,
 }
 
+pub fn interleaved_to_single_channel(samples: Vec<f32>) -> Vec<f32> {
+    let mut left: Vec<f32> = Vec::with_capacity(samples.len() / 2);
+    let mut right: Vec<f32> = Vec::with_capacity(samples.len() / 2);
+
+    for pair in samples.chunks_exact(2) {
+        left.push(pair[0]);
+        right.push(pair[1]);
+    }
+
+    left.iter().zip(right).map(|(l, r)| (l + r) / 2.).collect()
+}
+
 pub fn process_audio(
     samples: &mut Vec<f32>,
     sample_rate: u32,
